@@ -1,4 +1,4 @@
-sbc-template-latex
+final-project-software-engineering-UnB
 ==================
 
-Modelo em latex para relatórios que utilizam o formato SBC
+Article about how to model the workflow of the Login module using UPPAAL tool. 
