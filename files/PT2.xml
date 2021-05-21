@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE nta PUBLIC '-//Uppaal Team//DTD Flat System 1.1//EN' 'http://www.it.uu.se/research/group/darts/uppaal/flat-1_2.dtd'>
+<nta>
+	<declaration>// Place global declarations here.
+
+bool connected;
+int countFails;
+
+chan fail;
+chan credentials;
+chan logout;</declaration>
+	<template>
+		<name x="5" y="5">Login</name>
+		<declaration>// Place local declarations here.
+
+clock x;
+
+void initialize(){
+
+    connected = 0;
+    countFails = 0;
+    x = 0;
+}</declaration>
+		<location id="id0" x="-213" y="26">
+			<name x="-238" y="1">initial</name>
+		</location>
+		<location id="id1" x="-85" y="26">
+			<name x="-77" y="-8">login</name>
+		</location>
+		<location id="id2" x="110" y="26">
+			<name x="85" y="-8">validating</name>
+		</location>
+		<location id="id3" x="263" y="26">
+			<name x="263" y="-8">app</name>
+		</location>
+		<location id="id4" x="-85" y="-93">
+			<name x="-111" y="-127">blocked</name>
+			<label kind="invariant" x="-68" y="-101">x &lt; 300</label>
+			<committed/>
+		</location>
+		<init ref="id0"/>
+		<transition>
+			<source ref="id4"/>
+			<target ref="id0"/>
+		</transition>
+		<transition>
+			<source ref="id3"/>
+			<target ref="id0"/>
+			<label kind="synchronisation" x="17" y="111">logout?</label>
+			<label kind="assignment" x="-17" y="136">connected:=0</label>
+			<nail x="263" y="128"/>
+			<nail x="-213" y="128"/>
+			<nail x="-213" y="52"/>
+		</transition>
+		<transition>
+			<source ref="id1"/>
+			<target ref="id4"/>
+			<label kind="guard" x="-77" y="-59">countFails &gt;= 3</label>
+			<label kind="assignment" x="-77" y="-42">x:=0</label>
+		</transition>
+		<transition>
+			<source ref="id2"/>
+			<target ref="id1"/>
+			<label kind="synchronisation" x="17" y="68">fail!</label>
+			<label kind="assignment" x="-17" y="85">connected:=0</label>
+			<nail x="110" y="85"/>
+			<nail x="-85" y="85"/>
+		</transition>
+		<transition>
+			<source ref="id2"/>
+			<target ref="id3"/>
+			<label kind="assignment" x="144" y="26">connected:=1</label>
+		</transition>
+		<transition>
+			<source ref="id1"/>
+			<target ref="id2"/>
+			<label kind="guard" x="-17" y="26">countFails &lt; 3</label>
+			<label kind="synchronisation" x="-9" y="9">credentials?</label>
+		</transition>
+		<transition>
+			<source ref="id0"/>
+			<target ref="id1"/>
+			<label kind="assignment" x="-170" y="26">initialize()</label>
+		</transition>
+	</template>
+	<template>
+		<name>User</name>
+		<declaration>clock y;</declaration>
+		<location id="id5" x="-170" y="-17">
+			<name x="-195" y="-51">idle</name>
+			<label kind="invariant" x="-238" y="-25">y &lt; 100</label>
+		</location>
+		<location id="id6" x="42" y="-76">
+			<name x="32" y="-110">in</name>
+			<committed/>
+		</location>
+		<location id="id7" x="42" y="51">
+			<name x="32" y="17">out</name>
+			<committed/>
+		</location>
+		<init ref="id5"/>
+		<transition>
+			<source ref="id7"/>
+			<target ref="id5"/>
+			<label kind="assignment" x="-51" y="0">y:=0</label>
+		</transition>
+		<transition>
+			<source ref="id6"/>
+			<target ref="id5"/>
+			<label kind="assignment" x="-51" y="-51">y:=0</label>
+		</transition>
+		<transition>
+			<source ref="id5"/>
+			<target ref="id7"/>
+			<label kind="guard" x="-127" y="51">connected == 1</label>
+			<label kind="synchronisation" x="-110" y="34">logout!</label>
+			<nail x="-170" y="51"/>
+		</transition>
+		<transition>
+			<source ref="id5"/>
+			<target ref="id6"/>
+			<label kind="guard" x="-119" y="-76">connected == 0</label>
+			<label kind="synchronisation" x="-110" y="-93">credentials!</label>
+			<nail x="-170" y="-76"/>
+		</transition>
+	</template>
+	<template>
+		<name>Observer</name>
+		<location id="id8" x="-93" y="-17">
+			<name x="-136" y="-25">idle</name>
+		</location>
+		<location id="id9" x="9" y="-17">
+			<name x="25" y="-25">taken</name>
+			<committed/>
+		</location>
+		<init ref="id8"/>
+		<transition>
+			<source ref="id9"/>
+			<target ref="id8"/>
+			<label kind="assignment" x="-110" y="51">countFails = countFails + 1</label>
+			<nail x="8" y="42"/>
+			<nail x="-93" y="42"/>
+		</transition>
+		<transition>
+			<source ref="id8"/>
+			<target ref="id9"/>
+			<label kind="synchronisation" x="-59" y="-93">fail?</label>
+			<nail x="-93" y="-76"/>
+			<nail x="8" y="-76"/>
+		</transition>
+	</template>
+	<system>// Place template instantiations here.
+
+// List one or more processes to be composed into a system.
+system Login, Observer, User;
+    </system>
+	<queries>
+		<query>
+			<formula>E&lt;&gt; Login.blocked</formula>
+			<comment>reachability</comment>
+		</query>
+		<query>
+			<formula>A[] (Login.blocked imply countFails&gt;=3)</formula>
+			<comment>Bounded Liveness: it will be blocked if countFails &gt;=3</comment>
+		</query>
+		<query>
+			<formula>Login.blocked --&gt; Login.login</formula>
+			<comment>Liveness: Whenever it is blocked, it eventually will back to login</comment>
+		</query>
+		<query>
+			<formula>E&lt;&gt; Login.app</formula>
+			<comment>reachability</comment>
+		</query>
+		<query>
+			<formula>A[] not (User.in and User.out)</formula>
+			<comment>Mutex: in and out are never executed at the same time</comment>
+		</query>
+		<query>
+			<formula>E[] (User.in imply User.y&lt;100)</formula>
+			<comment></comment>
+		</query>
+		<query>
+			<formula>A[] not deadlock</formula>
+			<comment></comment>
+		</query>
+	</queries>
+</nta>

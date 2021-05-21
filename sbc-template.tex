@@ -1,0 +1,331 @@
+\documentclass[12pt]{article}
+
+\usepackage{sbc-template}
+
+\usepackage{graphicx,url}
+
+%\usepackage[brazil]{babel}   
+\usepackage[latin1]{inputenc}  
+\usepackage{attachfile}
+    
+\sloppy
+
+\title{TP2 - Módulo de início de sessão modelado em UPPAAL}
+
+\author{Jose Clavo Tafur\inst{1}}
+
+
+\address{Departamento de Ciência da Computação -- Universidade de Brasilia
+  (UnB)
+}
+
+\begin{document} 
+
+\maketitle
+
+\begin{resumo} 
+  Este artigo descreve o modelado de um sistema de transição referente ao módulo de início de sessão de um sistema X, para o qual foi usada a ferramenta UPPAAL. juntamente com isso são especificadas suas propriedades CTL e sua verificação respetivamente.
+\end{resumo}
+
+
+\section{Introdução}
+
+Antes de desenvolver um sistema o uma parte de ele, é preciso modelar e verificar que aquele modelo atenda a especificação requerida, em esse momento, é onde o uso de algumas ferramentas é indispensável. Em este artigo \textbf{UPPAAL} será usado, o qual é uma ferramenta para modelar, simular e verificar sistemas. Além disso, tem 3 principais características como seu \textit{linguagem de descrição}, \textit{simulador} e \textit{verificador de modelos} \cite{uppaalWeb}, as quais nos ajudaram em este processo.
+
+
+\section{Descrição do sistema analisado} \label{sec:firstpage}
+
+O análises será focalizado em um especifico módulo do sistema, o qual é o \textbf{início de sessão}.
+
+\subsection{Requisitos}
+	Aqueles requisitos com um \textbf{*} serão usados para criar o modelo. O resultado final no site sera como é mostrado na (Figura~\ref{fig:login_module_website})
+\begin{itemize}	
+	\item A pagina deve ser a primeira mostrada para o usuário quando acesse ao sistema.
+	\item Os campos usuário e senha são obrigatários.
+	\item Se as credencias dão certas o acesso ao sistema sera permitido, \textit{fluxo na (Figura~\ref{fig:flow_login_ok})}*
+	\item Se as credencias são incorretas, deve voltar a pagina de início de sessão, \textit{fluxo na (Figura~\ref{fig:flow_login_fail})}*
+	\item Depois de 3 acessos incorretos, o usuário sera bloqueado 5 minutos, \textit{fluxo na (Figura~\ref{fig:flow_login_blocked})}*
+	\item Adicionar a opção de "esqueceu senha".
+	\item Adicionar a opção de "mudar idioma".
+\end{itemize}
+
+\begin{figure}[ht]
+	\centering
+	\includegraphics[width=1\textwidth]{images/login_module_website.png}
+	\caption{Módulo de início de sessão.}
+%	\caption*{Source: Source of the image.}
+	\label{fig:login_module_website}
+\end{figure}
+
+
+\subsection{Arquitetura}
+
+A arquitetura do módulo de início de sessão é mostrado na (Figura~\ref{fig:login_module_architecture}) onde o fluxo que sera modelado esta selecionado de cor verde.
+
+\begin{figure}[ht]
+	\centering
+	\includegraphics[width=1\textwidth]{images/login_module_architecture.png}
+	\caption{Arquitetura do módulo de início de sessão}
+	\label{fig:login_module_architecture}
+\end{figure}
+
+\section{Modelagem em UPPAAL}
+
+O modelo tem 3 templates, o principal representa o início de sessão e é mostrado na (Figura~\ref{fig:template_login}), também tem o template que representa as ações do usuário (Figura~\ref{fig:template_user}), finalmente representando a um observador (Figura~\ref{fig:template_user}).
+
+\subsection{Templates}
+
+\subsubsection{Template de início de sessão: LOGIN}
+
+Este template (Figura~\ref{fig:template_login}) é o principal representa o fluxo de início de sessão e tem os seguintes elementos.
+
+\begin{itemize}	
+	\item Estados.
+		\begin{itemize}	
+			\item \textbf{initial}: o estado inicial.
+			\item \textbf{login}: é automaticamente alcançado depois do  $S_{initial}$
+			\item \textbf{validating}: simula a conexão ao banco de dados, verificando se as credencias são corretas ou não. 
+			\item \textbf{app}: representa ao aplicativo quando é acesso, em este caso não faz muito so esperar saída do sistema.
+			\item \textbf{blocked}: é alcançado quando o usuário erra mais de 3 acesso ao sistema. Além disso, tem a propriedade de ser ``committed'' o que significa que o seguinte estado $S_{initial}$ sera alcançado imediatamente. 
+		\end{itemize}
+	\item Variáveis
+		\begin{itemize}	
+			\item \textbf{connected}: é um ``booleano'', recebe o valor $1$ so quando as credencias dão certas e alcançá o estado $S_{app}$
+			\item \textbf{countFails}: é um ``inteiro'', age como um contador dos erros do acessos ao sistemas, incrementando em $1$ por cada erro, usando o ``template observador''. (Figura~\ref{fig:template_observer}), se seu valor é $>3$ o estado $S_{blocked}$ é alcançado. 
+		\end{itemize}
+	\item Relógio ou clock.
+		\begin{itemize}	
+			\item \textbf{x}: este relógio é usado para o contagem do tempo que estaria no estado $S_{blocked}$.
+		\end{itemize}
+	\item Função.
+		\begin{itemize}	
+			\item \textbf{initialize()}: inicializa os valores para as variaveis \textit{connected = 0} e \textit{countFails = 0}, e para o relogio ou ``clock'' \textit{x = 0}.
+		\end{itemize}
+	\item Sentinelas ou guards.
+		\begin{itemize}	
+			\item \textbf{countFails$<$3}: se a condição é certa, o estado $S_{validating}$ é alcançado e isso significa que ainda não tem o acesso bloqueado.
+			\item \textbf{countFails$>$3}: se a condição é certa, o estado $S_{blocked}$ é alcançado sendo o gatilho para o bloqueio.
+		\end{itemize}
+	\item Invariante.
+		\begin{itemize}	
+			\item \textbf{x$<$300}: representa a condição pra sair do estado $S_{blocked}$ usando o relógio $x$ para o contagem.
+		\end{itemize}
+	\item Canais.
+		\begin{itemize}	
+			\item \textbf{credentials}: esta na escuta das credencias do usuário enviadas por o ``template usuário''. (Figura~\ref{fig:template_user})
+			\item \textbf{logout}: esta na escuta que o usuário role a ação sair do sistema, a qual é enviada por o ``template usuário''. (Figura~\ref{fig:template_user})
+			\item \textbf{fail}: envia um mensagem para o ``template  observador'' (Figura~\ref{fig:template_observer}) quando as credencias para o início de sessão são incorretas.
+		\end{itemize}
+\end{itemize}
+
+\begin{figure}[ht]
+	\centering
+	\includegraphics[width=1\textwidth]{images/template_login.png}
+	\caption{Template de início de sessão: LOGIN}
+	\label{fig:template_login}
+\end{figure}
+
+\subsubsection{Template do usuário: USER}
+Este template (Figura~\ref{fig:template_user}) representa as ações de fazer login e sair do sistema realizadas por o usuário e tem os seguintes elementos.
+
+\begin{itemize}	
+	\item Estados.
+		\begin{itemize}	
+			\item \textbf{idle}: o estado inicial.
+			\item \textbf{in}: representa a ação quando o usuário tenta fazer login, além disso, tem a propriedade de ser ``committed''.
+			\item \textbf{out}: representa a ação quando o usuário tenta sair do sistema, além disso, tem a propriedade de ser ``committed''.
+		\end{itemize}
+	\item Relógio ou clock.
+		\begin{itemize}	
+			\item \textbf{y}: este relógio é usado para o contagem do tempo que estaria no estado $S_{idle}$, antes de alcançar outro estado. sendo reiniciado depois de alcançar eles.
+		\end{itemize}
+    \item Sentinelas ou guards.
+		\begin{itemize}	
+			\item \textbf{connected$==$0}: usando a variável global ``connected'' , se a condição é certa o que significa o usuário não ha iniciado sessão sera possível alcançar o estado $S_{in}$
+			\item \textbf{connected$==$1}: usando a variável global ``connected'' , se a condição é certa o que significa o usuário ha iniciado sessão sera possível alcançar o estado $S_{out}$
+		\end{itemize}
+	\item Invariante.
+		\begin{itemize}	
+			\item \textbf{y$<$100}: representa a condição que permite ao usuário sair do estado $S_{iddle}$ usando o relógio $y$ para o contagem.
+		\end{itemize}
+	\item Canais.
+		\begin{itemize}	
+			\item \textbf{credentials}: envia um mensagem para o ``template do inicio de sessão'' (Figura~\ref{fig:template_login}) quando o usuário tenta fazer login.
+			\item \textbf{logout}:envia um mensagem para o ``template do inicio de sessão'' (Figura~\ref{fig:template_login}) quando o usuário tenta sair do sistema.
+		\end{itemize}
+\end{itemize}
+
+\begin{figure}[ht]
+	\centering
+	\includegraphics[width=.8\textwidth]{images/template_user.png}
+	\caption{Template do usuário: USER}
+	\label{fig:template_user}
+\end{figure}
+
+\subsubsection{Template do observador: OBSERVER}
+Este template (Figura~\ref{fig:template_observer}) representa a um observador, que faz o contagem quando as credencias são erradas e tem os seguintes elementos.
+
+\begin{itemize}	
+	\item Estados.
+		\begin{itemize}	
+			\item \textbf{idle}: o estado inicial.
+			\item \textbf{taken}: representa a ação quando as credencias dão erradas, além disso, tem a propriedade de ser ``committed''. e quando volta para o estado $S_idle$ incrementa em $1$ a variável global ``countFails'' a qual e usado por o ``template do inicio de sessão'' (Figura~\ref{fig:template_login}).
+		\end{itemize}
+	\item Canal.
+		\begin{itemize}	
+			\item \textbf{fail}: está na escuta se as credencias deram erradas em o ``template do inicio de sessão'' (Figura~\ref{fig:template_login}).
+		\end{itemize}
+\end{itemize}
+
+\begin{figure}[ht]
+	\centering
+	\includegraphics[width=.8\textwidth]{images/template_observer.png}
+	\caption{Template do observador: OBSERVER}
+	\label{fig:template_observer}
+\end{figure}
+
+\subsection{Fluxos}
+
+\subsubsection{Inicio de sessão: sucesso}
+
+Como é mostrado na (Figura~\ref{fig:flow_login_ok}), o estado \textit{initial} \textbf{(1)} começa o fluxo, inicializando os valores. logo o estado \textit{login} \textbf{(2)} é alcançado e fica na escuta através do canal ``credentials''. Logo depois o usuário tenta fazer login o qual é possível porque o sentinela é cumprido já que a variável ``connected'' tem o valor ``0'' então dispara um mensagem ao mesmo tempo o relogio ``y'' e reinicializado \textbf{(3)}, este mensagem é capturado e como não houve credencias incorretas anteriormente, a variável ``countFails'' cumpre a condição do sentinela então o estado \textit{validating} \textbf{(4)} é alcançado, logo as credencias são validadas e o resultado é correto o qual permite acessar ao sistema alcançando o estado \textit{app} \textbf{(5)}. Além disso, a variável ``connected'' recibe o valor $1$ indicando que o usuário acessou ao sistema.
+
+\begin{figure}[ht]
+	\centering
+	\includegraphics[width=.9\textwidth]{images/flow_login_ok.png}
+	\caption{inicio de sessão: sucesso}
+	\label{fig:flow_login_ok}
+\end{figure}
+
+\subsubsection{Sair do sistema}
+
+O detalhe do ponto \textbf{(1)} já foi explicado na (Figura~\ref{fig:flow_login_ok}) encontrando-se agora no estado \textit{app} e fica na escuta através do canal ``logout''. Logo depois o usuário tenta sair do sistema o qual é possível porque o sentinela é cumprido já que a variável ``connected'' tem o valor ``1'' porque em esse momento o usuário esta no sistema, então dispara um mensagem ao mesmo tempo o relogio ``y'' e reinicializado \textbf{(2)}, este mensagem é capturado e o modelo volta para o estado \textit{initial} \textbf{(3)}, Além disso, a variável ``connected'' recibe o valor $0$ indicando que o usuário saiu do sistema. O explicado é mostrado na (Figura~\ref{fig:flow_logout})
+
+\begin{figure}[ht]
+	\centering
+	\includegraphics[width=.9\textwidth]{images/flow_logout.png}
+	\caption{sair do sistema}
+	\label{fig:flow_logout}
+\end{figure}
+
+
+\subsubsection{Inicio de sessão: falha}
+
+Os detalhes dos pontos \textbf{(1,2,3,4)} já foram explicados na (Figura~\ref{fig:flow_login_ok}) encontrando-se agora no estado \textit{validating}, logo as credencias são validadas e o resultado da erro então dispara um mensagem, , este mensagem é capturado \textbf{(5)} alcançando o estado \textit{taken} e ao mesmo tempo o variável ``countFails'' é incrementa seu valor em $1$. Simultaneamente
+o modelo volta para o estado \textit{login} \textbf{(6)} , além disso, a variável ``connected'' recibe o valor $0$ indicando que o usuário ainda não acessou ao sistema. O explicado é mostrado na (Figura~\ref{fig:flow_login_fail})
+
+\begin{figure}[ht]
+	\centering
+	\includegraphics[width=.9\textwidth]{images/flow_login_fail.png}
+	\caption{inicio de sessão: falha}
+	\label{fig:flow_login_fail}
+\end{figure}
+
+\subsubsection{Inicio de sessão: bloqueado}
+
+O detalhe do ponto \textbf{(1)} já foi explicado na (Figura~\ref{fig:flow_login_fail}) encontrando-se agora no estado \textit{login}, se este fluxo de falha acontece 3 vezes, a condição do sentinela para o estado \textit{blocked} \textbf{(2)} é cumprido, além disso, o relógio ``x'' é reinicializado. Estando no estado \textit{blocked} aguardando a condição da invariante cumprir usando o relógio para o contagem, posteriormente, o modelo volta para o estado \textit{initial} \textbf{(3)}.  
+
+
+\begin{figure}[ht]
+	\centering
+	\includegraphics[width=.9\textwidth]{images/flow_login_blocked.png}
+	\caption{inicio de sessão: bloqueado}
+	\label{fig:flow_login_blocked}
+\end{figure}
+
+\section{Especificação das Propriedades em CTL}
+
+\subsection{Deadlock}
+
+O modelo encontra-se livre de ``deadlock'', consequentemente, a propriedade é satisfeita.
+\begin{center}
+\textbf{A [] not deadlock}
+\end{center}
+
+\subsection{Reachability}
+
+\begin{itemize}	
+	\item
+		 Existe algum caminho, que eventualmente vai alcançar o estado $S_{blocked}$ no template de início de sessão?
+		\hfill \break
+		A resposta é afirmativa, por conseguinte, a propriedade é satisfeita.
+\end{itemize} 
+	\begin{center}
+		\textbf{E $<>$ Login.blocked}
+	\end{center}
+
+\begin{itemize}	
+	\item
+		 Existe algum caminho, que eventualmente vai alcançar o estado $S_{app}$ no template de início de sessão?
+		\hfill \break
+		A resposta é afirmativa, assim, a propriedade é satisfeita.
+\end{itemize} 
+	\begin{center}
+		\textbf{E $<>$ Login.app}
+	\end{center}
+	
+\subsection{Bounded Liveness}
+
+\begin{itemize}	
+	\item
+		Para todos los caminhos, sempre que o estado $S_{blocked}$ no template de início de sessão seja alcançado significara que a variável ``countFails'' é maior ou igual a 3?
+		A resposta é afirmativa, portanto, a propriedade é satisfeita.
+\end{itemize}
+		\begin{center}
+			\textbf{A[] (Login.blocked $imply$ countFails$>=$3)}
+		\end{center}
+
+\begin{itemize}		
+	\item
+		Para todos los caminhos, sempre que o estado $S_{in}$ no template do usuário seja alcançado significara que o relógio ``y'' é menor que 100?
+		A resposta é afirmativa, de modo que, a propriedade é satisfeita.
+\end{itemize}	
+		\begin{center}
+			\textbf{E[] (User.in $imply$ User.y$<$100)}
+		\end{center}
+
+
+\subsection{Liveness}
+No template de início de sessão, estando no estado $S_{blocked}$ eventualmente o estado $S_{login}$ sera alcançado?
+\hfill \break
+A resposta é afirmativa, desse modo, a propriedade é satisfeita.
+\begin{center}
+	\textbf{Login.blocked $-->$ Login.login}
+\end{center}
+
+\subsection{Mutex}
+No template do usuário, os estados $S_{in}$ e $S_{out}$ nunca serão alcançados ao mesmo tempo?
+\hfill \break
+A resposta é afirmativa, por conseguinte, a propriedade é satisfeita.
+\begin{center}
+	\textbf{A[] not (User.in and User.out)}
+\end{center}
+
+\section{Resultados Obtidos e Análise}
+
+%\subsection{Resultados Obtidos}
+
+\begin{itemize}		
+	\item Foi modelado o fluxo do módulo de início de sessão, usando dois modelos auxiliares que representam as ações do usuário e a um observador. Estos modelos ao ser testados tiveram um resultado ótimo.
+	\item O uso das propriedades em CTL foi de muita ajuda na verificação dos modelos criados. 
+	\item A verificação de modelos é um ótimo abordagem para ser aplicado em cenários práticos.
+	\item O arquivo com o conteúdo do artigo no formato UPPAAL pode ser baixado aqui: \attachfile{files/PT2.xml}
+\end{itemize}	
+		
+%\subsection{Análise}
+%
+%\begin{itemize}		
+%	\item 1
+%	\item 2
+%	\item 3
+%\end{itemize}	
+
+\section{Conclusão}
+
+UPPAAL é uma ferramenta muito boa no momento de fazer o modelagem, e não só de um módulo do sistema, é possível modelar tudo ele com esta ferramenta. Além disso, tem a opção de simular e verificar o modelo criado. Na parte da verificação permite a especificação e uso das propriedades em CTL.
+No processo de modelagem esta ferramenta foi de muita ajuda para mim. Ademais, outra fonte de ajuda foi o livro \cite{model:2008}, o qual revisamos na aula e tem muita informação interessante sobre as propriedades. Finalmente, eu recomendo o uso desta ferramenta para o modelagem, ao mesmo de um módulo pequeno como foi comprovado em este artigo.  
+
+\bibliographystyle{sbc}
+\bibliography{sbc-template}
+
+\end{document}
